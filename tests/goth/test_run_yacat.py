@@ -63,7 +63,7 @@ async def assert_all_invoices_accepted(output_lines: EventStream[str]):
     async for line in output_lines:
         m = re.search("Agreement confirmed by provider '([^']*)'", line)
         if m:
-            prov_name = m.group(1)
+            prov_name = m.group(1)acv
             logger.debug(
                 "assert_all_invoices_accepted: adding provider '%s'", prov_name
             )
