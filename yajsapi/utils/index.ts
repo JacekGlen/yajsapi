@@ -6,8 +6,10 @@ import Callable from "./callable";
 import CancellationToken from "./cancellationToken";
 import eventLoop from "./eventLoop";
 import getAllProperties from "./getAllProperties";
+import isPromisePending from "./isPromisePending";
 import logger, * as logUtils from "./log";
 import { changeLogLevel } from "./log";
+import promiseTimeout from "./promiseTimeout";
 import promisify from "./promisify";
 import Queue from "./queue";
 import range from "./range";
@@ -24,11 +26,13 @@ export {
   eventLoop,
   changeLogLevel,
   getAllProperties,
+  isPromisePending,
   Lock,
   logger,
   logUtils,
   promisify,
+  promiseTimeout,
   Queue,
   range,
-  sleep,
+  sleep
 };

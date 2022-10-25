@@ -1,7 +1,7 @@
 /* eslint @typescript-eslint/no-explicit-any: 0 */
 import { Activity, NodeInfo } from "../props";
 import { Agreement, OfferProposal, TerminationReason } from "../rest/market";
-import { asyncWith, CancellationToken, Lock, logger } from "../utils";
+import {asyncWith, CancellationToken, isPromisePending, Lock, logger} from "../utils";
 import * as events from "./events";
 import { ComputationHistory } from "./strategy";
 
@@ -174,7 +174,7 @@ export class AgreementsPool implements ComputationHistory {
       return;
     }
     logger.debug(`Terminating agreement. id: ${agreement_id}, reason: ${JSON.stringify(reason)}`);
-    if (buffered_agreement.worker_task && buffered_agreement.worker_task.isPending()) {
+    if (buffered_agreement.worker_task && await isPromisePending(buffered_agreement.worker_task)) {
       logger.debug(`Terminating agreement that still has worker. agr_id: ${buffered_agreement.agreement.id()}`);
       buffered_agreement.worker_task.cancel();
     }
