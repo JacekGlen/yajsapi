@@ -1,7 +1,6 @@
 /* eslint @typescript-eslint/no-this-alias: 0 */
 /* eslint no-constant-condition: 0 */
 /* old executor */
-import bluebird, { TimeoutError } from "bluebird";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import duration from "dayjs/plugin/duration";
@@ -28,11 +27,13 @@ import {
   Callable,
   CancellationToken,
   eventLoop,
+  isPromisePending,
   logger,
   logUtils,
   promisify,
+  promiseTimeout,
   Queue,
-  sleep,
+  sleep
 } from "../utils";
 
 import * as _vm from "../package/vm";
@@ -652,7 +653,7 @@ export class Executor {
     }
 
     async function worker_starter(): Promise<void> {
-      function _start_worker(agreement: Agreement) {
+      async function _start_worker(agreement: Agreement) {
         start_worker(agreement).catch(async (error) => {
           logger.warn(`Worker for agreement ${agreement.id()} finished with error: ${error}`);
           await agreements_pool.release_agreement(agreement.id(), false);
@@ -687,12 +688,6 @@ export class Executor {
       logger.debug("Stopped starting new tasks on providers.");
     }
 
-    async function promise_timeout(seconds: number) {
-      return bluebird.coroutine(function* (): any {
-        yield sleep(seconds);
-      })();
-    }
-
     const loop = eventLoop();
     const find_offers_task = loop.create_task(this.find_offers.bind(this, this.state, emit));
     const process_invoices_job = loop.create_task(process_invoices);
@@ -711,7 +706,7 @@ export class Executor {
         }
         const now = dayjs.utc();
         if (now > this._expires) {
-          throw new TimeoutError(`Task timeout exceeded. timeout=${this._conf.timeout}`);
+          throw new Error(`Task timeout exceeded. timeout=${this._conf.timeout}`);
         }
         if (now > get_offers_deadline && this.state.proposals_confirmed == 0) {
           emit(
@@ -728,17 +723,18 @@ export class Executor {
           services.push(get_done_task);
         }
 
-        await bluebird.Promise.any([...services, ...workers, promise_timeout(10)]);
+        await Promise.any([...services, ...workers, sleep(10)]);
 
-        workers = new Set([...workers].filter((worker) => worker.isPending()));
-        services = services.filter((service) => service.isPending());
+        workers = new Set([...workers].filter(async (worker) => await isPromisePending(worker)));
+        services = services.filter(async (service) => await isPromisePending(service));
         if (!get_done_task) throw "";
-        if (!get_done_task.isPending()) {
+        if (!await isPromisePending(get_done_task)) {
           const res = await get_done_task;
           if (!res) break;
           if (services.indexOf(get_done_task) > -1) throw "";
           get_done_task = null;
         }
+        await sleep(1);
       }
       emit(new events.ComputationFinished());
     } catch (error) {
@@ -788,7 +784,7 @@ export class Executor {
         logger.debug(`Waiting for ${agreements_to_pay.size} invoices...`);
       }
       try {
-        await bluebird.Promise.all([process_invoices_job, debit_notes_job]).timeout(25000);
+        await Promise.all([promiseTimeout(process_invoices_job, 250), promiseTimeout(debit_notes_job, 250)]);
       } catch (error) {
         logger.warn(`Error while waiting for invoices: ${error}.`);
       }
