@@ -51,8 +51,8 @@ import axios from "axios";
 
 import { Worker } from "./executor";
 import { WorkContext } from "./work_context";
-import { EventBus } from "./eventBus";
-import { TaskQueue } from "./task_queue";
+import { EventBus } from "./event_bus";
+import TaskQueue from "./task_queue";
 import { TaskService } from "./task_service";
 
 export const vm = _vm;

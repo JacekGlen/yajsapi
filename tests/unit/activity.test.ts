@@ -174,7 +174,7 @@ describe("#Activity()", () => {
     activity["api"]["setExpectedErrors"]([error, error, error]);
     return new Promise((res) => {
       results.on("error", (error) => {
-        expect(error.toString()).to.be("Some undefined error");
+        expect(error.toString()).to.equal("Some undefined error");
         return res();
       });
       results.on("data", () => null);

@@ -3,8 +3,8 @@ import { Task } from "./task_new";
 import { Logger, sleep } from "../utils";
 import * as events from "./events";
 import { Agreement, WorkContext } from "./work_context";
-import { EventBus } from "./eventBus";
-import { TaskQueue } from "./task_queue";
+import { EventBus } from "./event_bus";
+import TaskQueue from "./task_queue";
 import { StorageProvider } from "../storage/provider";
 import { NetworkNode } from "../network";
 
@@ -24,7 +24,7 @@ export class TaskService {
   constructor(
     apiKey: string,
     private isRunning: boolean,
-    private tasksQueue: TaskQueue,
+    private tasksQueue: TaskQueue<Task>,
     private agreementPool: AgreementPool,
     private eventBus: EventBus,
     private storageProvider?: StorageProvider,
