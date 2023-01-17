@@ -14,7 +14,7 @@ chai.use(chaiAsPromised);
 const expect = chai.expect;
 let queue;
 const logger = new LoggerMock();
-process.env['YAGNA_APPKEY'] = 'test_key';
+process.env["YAGNA_APPKEY"] = "test_key";
 
 describe("Task Service", () => {
   beforeEach(() => {
@@ -144,7 +144,4 @@ describe("Task Service", () => {
     expect(task3.isFinished()).to.be.true;
     await service.end();
   }).timeout(5000);
-
-  // TODO
-  it("stop the service if it is interrupted by the user");
 });

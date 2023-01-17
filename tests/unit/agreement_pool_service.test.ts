@@ -9,7 +9,7 @@ import { LoggerMock } from "../mock";
 import { Agreement, AgreementPoolService } from "../../yajsapi/agreement";
 
 const logger = new LoggerMock();
-process.env['YAGNA_APPKEY'] = 'test_key';
+process.env["YAGNA_APPKEY"] = "test_key";
 
 describe("Agreement Pool Service", () => {
   beforeEach(() => {
@@ -23,7 +23,6 @@ describe("Agreement Pool Service", () => {
       expect(logger.logs).to.include("Agreement Pool Service has started");
       await marketService.end();
     });
-    it("what should do if service is running already?");
   });
   describe("end()", () => {
     it("should stop service", async () => {
@@ -32,7 +31,6 @@ describe("Agreement Pool Service", () => {
       await marketService.end();
       expect(logger.logs).to.include("Agreement Pool Service has been stopped");
     });
-    it("what should do if service is not running anymore?");
   });
 
   describe("getAvailableAgreement()", () => {
@@ -53,14 +51,7 @@ describe("Agreement Pool Service", () => {
       const agreement2 = await marketService.getAgreement();
       expect(agreement1).to.deep.equal(agreement2);
     }).timeout(5000);
-    it("should not create agreement from proposal if any agreement is available");
   });
-
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  describe("isProviderLastAgreementRejected()", () => {});
-
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  describe("terminateAll()", () => {});
 
   describe("releaseAgreement()", () => {
     it("should return agreement to the pool if flag reuse if on", async () => {

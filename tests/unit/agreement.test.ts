@@ -12,7 +12,7 @@ import { AgreementStateEnum } from "ya-ts-client/dist/ya-market/src/models/agree
 
 const subnetTag = "testnet";
 const logger = new LoggerMock();
-process.env['YAGNA_APPKEY'] = 'test_key';
+process.env["YAGNA_APPKEY"] = "test_key";
 
 describe("Agreement", () => {
   beforeEach(() => logger.clear());
@@ -39,7 +39,6 @@ describe("Agreement", () => {
       const agreement = await Agreement.create("test_proposal_id", { subnetTag, logger });
       expect(await agreement.getState()).to.be.equal(AgreementStateEnum.Approved);
     });
-    it("should throw en error if there is no state");
   });
 
   describe("terminate()", () => {
