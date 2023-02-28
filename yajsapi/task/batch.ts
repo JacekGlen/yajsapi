@@ -44,7 +44,7 @@ export class Batch {
         allResults.push(res);
         if (res.result === "Error") {
           this.script.after();
-          return rej(`Error: ${res.message}`);
+          return rej(`Error on command ${res.index}: ${res.message}`);
         }
       });
       results.on("end", () => {

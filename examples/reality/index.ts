@@ -11,18 +11,25 @@ import {
   Activity,
   Batch,
   GftpStorageProvider,
+  Agreement,
+  Deploy,
+  Script,
+  Start,
 } from "../../dist/index.js";
-import { Agreement, Deploy, Run, Script, Start } from "yajsapi";
 
 program
-  .requiredOption("--timeout <timeout>", "time period of collecting offer")
+  .requiredOption("--timeout <timeout>", "timout for collecting offer")
   .requiredOption("--threshold <threshold>", "minimal score");
 program.parse();
 const options = program.opts();
 
 const logger = new ConsoleLogger();
+// disable debug
 logger.debug = () => null;
+
 const storageProvider = new GftpStorageProvider(logger);
+
+// primitive scoring database
 const providersScoring = new Map<string, number>();
 let allocation, demand, agreement, activity;
 
@@ -35,7 +42,7 @@ async function main(timeout: number, threshold: number) {
   const offers = await collectOffers(demand, timeout);
   logger.info(`Collect ${offers.length} offers`);
   if (offers.length === 0) {
-    logger.warn("No offers in the market. Exit");
+    logger.warn("No offers in the market meeting the criteria. Exit");
     await terminateAll();
     return;
   }
@@ -55,7 +62,13 @@ async function main(timeout: number, threshold: number) {
 }
 
 async function prepareAndCreateDemand(): Promise<Demand> {
-  const taskPackage = await Package.create({ imageHash: "9a3b5d67b0b27746283cb5f287c13eab1beaa12d92a9f536b747c7ae" });
+  const taskPackage = await Package.create({
+    // example of image hash with linux image
+    imageHash: "9a3b5d67b0b27746283cb5f287c13eab1beaa12d92a9f536b747c7ae",
+    minCpuCores: 1,
+    minMemGib: 1,
+    minStorageGib: 1,
+  });
   const accounts = await (await Accounts.create()).list();
   const account = accounts.find((account) => account?.platform.indexOf("erc20") !== -1);
   if (!account) throw new Error("There is no available account");
@@ -84,6 +97,7 @@ function chooseBestOffer(offers: Proposal[], threshold: number): Proposal {
     a.properties["golem.node.id.name"] > b.properties["golem.node.id.name"] ? 1 : -1
   );
   const firstOfferAboveThreshold = sortedOffers.find((offer) => Number(offer.score) >= threshold);
+  if (!firstOfferAboveThreshold) logger.warn("No offers with a minimal score threshold. The first was selected.");
   return firstOfferAboveThreshold || sortedOffers[0];
 }
 
@@ -109,11 +123,15 @@ async function createAndPrepareActivity(offer: Proposal): Promise<[string, Activ
 async function runTaskAndScore(activity: Activity, providerId: string) {
   const batch = await Batch.create(activity, storageProvider, logger);
   const results = await batch
-    .uploadFile("./input.txt", "/golem/input.txt")
-    .run("(cat /golem/input.txt & echo 'run some computations with this inputs') > /golem/output.txt")
-    .downloadFile("/golem/output.txt", "./output.txt")
+    .uploadFile("./input.txt", "/golem/work/input.txt")
+    .run("cat /golem/work/input.txt > /golem/work/output.txt")
+    .run("echo 'run some computations with inputs' >> /golem/work/output.txt")
+    .downloadFile("/golem/work/output.txt", "./output.txt")
     .end();
-  console.log("RESULTS: ", results);
+  console.log(
+    "RESULTS: ",
+    results.map((r) => r.result)
+  );
   // TODO: evaluate the results - temporary set random score
   const score = Math.floor(Math.random() * 100) + 1;
   scoreProvider(providerId, score);
@@ -127,10 +145,10 @@ function scoreProvider(providerId: string, score: number) {
 
 async function terminateAll() {
   await Promise.all([
-    activity.stop(),
-    agreement.terminate(),
-    demand.unsubscribe(),
+    activity?.stop(),
+    agreement?.terminate(),
+    demand?.unsubscribe(),
     storageProvider.close(),
-    allocation.release(),
+    allocation?.release(),
   ]);
 }
