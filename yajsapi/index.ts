@@ -8,6 +8,8 @@ export { Demand, DemandEvent, DemandEventType, DemandOptions, Proposal } from ".
 export { Package, PackageOptions } from "./package/index.js";
 export { Invoice, DebitNote, Allocation, Accounts } from "./payment/index.js";
 export { Script, Run, Deploy, Start } from "./script/index.js";
+export { Batch } from "./task/batch.js";
+export { StorageProvider, GftpStorageProvider } from "./storage/index.js";
 
 // Utils
 export { ConsoleLogger, Logger } from "./utils/index.js";
