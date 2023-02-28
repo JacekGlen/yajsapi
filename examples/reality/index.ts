@@ -28,10 +28,10 @@ const logger = new ConsoleLogger();
 logger.debug = () => null;
 
 const storageProvider = new GftpStorageProvider(logger);
+let allocation, demand, agreement, activity;
 
 // primitive scoring database
 const providersScoring = new Map<string, number>();
-let allocation, demand, agreement, activity;
 
 main(options.timeout, options.threshold);
 
