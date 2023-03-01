@@ -160,7 +160,8 @@ async function processPayments(event) {
 }
 
 async function terminateAll() {
-  await demand?.unsubscribe(), await activity?.stop();
+  await demand?.unsubscribe();
+  await activity?.stop();
   await agreement?.terminate();
   if (payments) {
     // wait 10 s. for payments
