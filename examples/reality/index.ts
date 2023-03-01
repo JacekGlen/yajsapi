@@ -15,6 +15,10 @@ import {
   Deploy,
   Script,
   Start,
+  DebitNoteEvent,
+  InvoiceEvent,
+  PaymentEventType,
+  Payments,
 } from "../../dist/index.js";
 
 program
@@ -28,7 +32,8 @@ const logger = new ConsoleLogger();
 logger.debug = () => null;
 
 const storageProvider = new GftpStorageProvider(logger);
-let allocation, demand, agreement, activity;
+let allocation, demand, agreement, activity, payments;
+let totalCost = 0;
 
 // primitive scoring database
 const providersScoring = new Map<string, number>();
@@ -40,7 +45,7 @@ async function main(timeout: number, threshold: number) {
   demand = await prepareAndCreateDemand();
   logger.info("Collecting offers...");
   const offers = await collectOffers(demand, timeout);
-  logger.info(`Collect ${offers.length} offers`);
+  logger.info(`Collected ${offers.length} offers`);
   if (offers.length === 0) {
     logger.warn("No offers in the market meeting the criteria. Exit");
     await terminateAll();
@@ -50,15 +55,16 @@ async function main(timeout: number, threshold: number) {
   logger.info(
     `The best offer from provider "${bestOffer.properties["golem.node.id.name"]}" with score "${bestOffer.score}" was selected`
   );
-  logger.info("Confirm agreement and waiting for the provider to be ready...");
+  logger.info("Confirming agreement and waiting for the provider to be ready...");
   const [providerId, activity] = await createAndPrepareActivity(bestOffer);
-  // TODO:
-  // const payments = Payments.create();
-  // payments.acceptAll();
+  logger.info("Start accepting payments...");
+  payments = await Payments.create({ logger });
+  payments.addEventListener(PaymentEventType, processPayments);
   logger.info("Running the task...");
   await runTaskAndScore(activity, providerId);
-  logger.info("Work done");
+  logger.info("Waiting for payments...");
   await terminateAll();
+  logger.info("Work done");
 }
 
 async function prepareAndCreateDemand(): Promise<Demand> {
@@ -106,7 +112,7 @@ async function createAndPrepareActivity(offer: Proposal): Promise<[string, Activ
   await agreement.confirm().catch((e) => {
     throw new Error(e.toString());
   });
-  activity = await Activity.create(agreement.id, { logger });
+  activity = await Activity.create(agreement.id, { logger, activityExecuteTimeout: 120_000 });
   const script = await Script.create([new Deploy(), new Start()]);
   await activity.execute(script.getExeScriptRequest());
   // wait 60 s. for the activity to be ready
@@ -143,12 +149,30 @@ function scoreProvider(providerId: string, score: number) {
   logger.info(`Provider ID ${providerId} scored ${score}`);
 }
 
+async function processPayments(event) {
+  if (event instanceof InvoiceEvent && event.invoice.agreementId == agreement.id) {
+    event.invoice.accept(event.invoice.amount, allocation.id).catch((e) => logger.warn(e));
+    logger.info(`Invoice for agreement accepted`);
+    totalCost = Number(event.invoice.amount);
+  }
+  if (event instanceof DebitNoteEvent)
+    event.debitNote.accept(event.debitNote.totalAmountDue, allocation.id).catch((e) => logger.warn(e));
+}
+
 async function terminateAll() {
-  await Promise.all([
-    activity?.stop(),
-    agreement?.terminate(),
-    demand?.unsubscribe(),
-    storageProvider.close(),
-    allocation?.release(),
-  ]);
+  await demand?.unsubscribe(), await activity?.stop();
+  await agreement?.terminate();
+  if (payments) {
+    // wait 10 s. for payments
+    let timeout = false;
+    const timeoutId = setTimeout(() => (timeout = true), 10_000);
+    while (!totalCost && !timeout) await new Promise((res) => setTimeout(res, 2_000));
+    clearTimeout(timeoutId);
+    if (!totalCost) logger.warn("Waiting time for payment has expired. No Payment");
+    else logger.info(`Total cost: ${totalCost}`);
+    payments.removeEventListener(PaymentEventType, processPayments);
+    payments?.unsubscribe();
+  }
+  await storageProvider.close();
+  await allocation?.release();
 }
