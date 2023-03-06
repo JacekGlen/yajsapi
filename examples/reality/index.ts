@@ -1,4 +1,3 @@
-import { program } from "commander";
 import {
   Accounts,
   Allocation,
@@ -21,11 +20,16 @@ import {
   Payments,
 } from "../../dist/index.js";
 
-program
-  .requiredOption("--timeout <timeout>", "timout for collecting offer")
-  .requiredOption("--threshold <threshold>", "minimal score");
-program.parse();
-const options = program.opts();
+// program
+//   .requiredOption("--timeout <timeout>", "timout for collecting offer")
+//   .requiredOption("--threshold <threshold>", "minimal score");
+// program.parse();
+// const options = program.opts();
+
+const options = {
+  timeout: 40,
+  threshold: 0.5,
+}
 
 const logger = new ConsoleLogger();
 // disable debug
@@ -76,7 +80,8 @@ async function prepareAndCreateDemand(): Promise<Demand> {
     minStorageGib: 1,
   });
   const accounts = await (await Accounts.create()).list();
-  const account = accounts.find((account) => account?.platform.indexOf("erc20") !== -1);
+//  logger.info(`Available accounts: ${JSON.stringify(accounts, null, 2)}`);
+  const account = accounts.find((account) => account.driver === "erc20" && account.network === "rinkeby");
   if (!account) throw new Error("There is no available account");
   allocation = await Allocation.create({ account, logger });
   return Demand.create(taskPackage, [allocation], { logger });
@@ -93,6 +98,7 @@ async function collectOffers(demand: Demand, timeout): Promise<Proposal[]> {
       else if (proposalEvent.proposal.isDraft()) {
         proposalEvent.proposal.score = providersScoring.get(proposalEvent.proposal.issuerId) || null;
         offers.push(proposalEvent.proposal);
+        //logger.info(`Received offer ${JSON.stringify(proposalEvent, null, 2)}}`);
       }
     });
   });
@@ -119,10 +125,14 @@ async function createAndPrepareActivity(offer: Proposal): Promise<[string, Activ
   let timeout = false;
   const timeoutId = setTimeout(() => (timeout = true), 60_000);
   while ((await activity.getState()) !== "Ready" && !timeout) {
+    logger.debug(`Current state: ${await activity.getState()}`);
     await new Promise((res) => setTimeout(res, 2_000));
   }
   clearTimeout(timeoutId);
   if (timeout) throw new Error(`Unable to prepare activity. Current state: ${await activity.getState()}`);
+  // logger.info(`Activity prepared. Current state: ${await activity.getState()}`);
+  // logger.info(`Agreement: ${ JSON.stringify( agreement, null, 2)}`);
+  // logger.info(`Activity: ${ JSON.stringify( activity, null, 2)}`);
   return [agreement.provider.id, activity];
 }
 
@@ -133,11 +143,13 @@ async function runTaskAndScore(activity: Activity, providerId: string) {
     .run("cat /golem/work/input.txt > /golem/work/output.txt")
     .run("echo 'run some computations with inputs' >> /golem/work/output.txt")
     .downloadFile("/golem/work/output.txt", "./output.txt")
+    .run("echo 'straight to stdout'")
     .end();
   console.log(
     "RESULTS: ",
     results.map((r) => r.result)
   );
+  logger.info(`Results: ${JSON.stringify(results, null, 2)}`);
   // TODO: evaluate the results - temporary set random score
   const score = Math.floor(Math.random() * 100) + 1;
   scoreProvider(providerId, score);
@@ -164,9 +176,10 @@ async function terminateAll() {
   await activity?.stop();
   await agreement?.terminate();
   if (payments) {
+    logger.info(`awaiting payments ${JSON.stringify(payments, null, 2)}`);
     // wait 10 s. for payments
     let timeout = false;
-    const timeoutId = setTimeout(() => (timeout = true), 10_000);
+    const timeoutId = setTimeout(() => (timeout = true), 100_000);
     while (!totalCost && !timeout) await new Promise((res) => setTimeout(res, 2_000));
     clearTimeout(timeoutId);
     if (!totalCost) logger.warn("Waiting time for payment has expired. No Payment");
