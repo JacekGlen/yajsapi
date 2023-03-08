@@ -55,9 +55,14 @@ export class Payments extends EventTarget {
         .getInvoiceEvents(
           this.options.paymentRequestTimeout / 1000,
           this.lastInvoiceFetchingTime,
-          this.options.maxInvoiceEvents
+          this.options.maxInvoiceEvents,
+          undefined,
+          {headers: { "Connection": "close" }}
         )
-        .catch((e) => this.logger?.error(`Unable to collect invoices. ${e?.response?.data?.message || e}`));
+        .catch((e) => {
+          this.logger?.error(`Unable to collect invoices. ${e?.response?.data?.message || e}`);
+          return { data: [] };
+        });
       for (const event of invoiceEvents) {
         if (event.eventType !== "InvoiceReceivedEvent") continue;
         const invoice = await Invoice.create(event["invoiceId"], { ...this.options.options }).catch((e) =>
@@ -78,9 +83,14 @@ export class Payments extends EventTarget {
         .getDebitNoteEvents(
           this.options.paymentRequestTimeout / 1000,
           this.lastDebitNotesFetchingTime,
-          this.options.maxDebitNotesEvents
+          this.options.maxDebitNotesEvents,
+          undefined,
+          {headers: { "Connection": "close" }}
         )
-        .catch((e) => this.logger?.error(`Unable to collect debit notes. ${e?.response?.data?.message || e}`));
+        .catch((e) => {
+          this.logger?.error(`Unable to collect debit notes.${e?.response?.data?.message || e}`);
+          return { data: [] };
+        });
       for (const event of debitNotesEvents) {
         if (event.eventType !== "DebitNoteReceivedEvent") continue;
         const debitNote = await DebitNote.create(event["debitNoteId"], { ...this.options.options }).catch((e) =>
