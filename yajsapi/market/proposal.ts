@@ -79,7 +79,7 @@ export class Proposal {
     await this.api
       .counterProposalDemand(this.subscriptionId, this.id, this.demandRequest, { timeout: 20000 })
       .catch((e) => {
-        throw new Error(e?.response?.data?.message || e);
+        throw new Error("Counter Proposal Damand failed:" + e?.response?.data?.message || e);
       });
     this.eventTarget?.dispatchEvent(new Events.ProposalResponded({ id: this.id, providerId: this.issuerId }));
   }

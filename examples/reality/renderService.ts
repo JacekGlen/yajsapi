@@ -50,7 +50,7 @@ export class RenderService {
         this.job = job
         this.timeout = settings?.timeout || 60_000
         this.logger = settings?.logger || winstonLogger
-        this.storageProvider = new GftpStorageProvider(logger)
+        this.storageProvider = new GftpStorageProvider(this.logger)
 
         this.jobLogger = winston.createLogger({
             level: 'debug',
@@ -75,7 +75,7 @@ export class RenderService {
         this.logger.info(`JG: Results: ${JSON.stringify(results, null, 2)}`);
 
         await this.allocation.release();
-        logger.info("JG: Allocation released");
+        this.logger.info("JG: Allocation released");
     }
 
     private async getProposal(): Promise<Proposal> {
@@ -180,7 +180,7 @@ export class RenderService {
             const paymentsCompletionTimeout = setTimeout(() => {
                 timeout = true
                 this.logger.info(`JG: Payments timeout reached`)
-            }, 20_000)
+            }, 20_003)
             while (!amountPaid && !timeout) await sleep(2_000, true)
             this.logger.info("JG: Payments completed")
             clearTimeout(paymentsCompletionTimeout)
@@ -223,18 +223,18 @@ export class RenderService {
     }
 }
 
-// temporary code to run the example
+// // temporary code to run the example
 
-const job = {
-    jobId: "job-1",
-}
+// const job = {
+//     jobId: "job-1",
+// }
 
-const logger = winstonLogger;
-logger.setLevel('debug')
+// const logger = winstonLogger;
+// logger.setLevel('debug')
 
-const renderService = new RenderService(job, { logger });
-await renderService.executeRenderTask().catch((e) => console.error(e));
-logger.info("JG: Finished");
+// const renderService = new RenderService(job, { logger });
+// await renderService.executeRenderTask().catch((e) => console.error(e));
+// logger.info("JG: Finished");
 
 // agreement.provider.id
 // proposal.properties["golem.node.id.name"]
